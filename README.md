@@ -9,7 +9,7 @@ script is inspired by the heroku deployment process.
 * Setup a bare git on the remote (deployment server), `git init --bare`
 * Create a file called `hooks/post-receive` in the new remote repo. 
 * Remember to the the file executable, `sudo chmod +x hooks/post-receive`
-* Add a remote to your local git folder `git remote add myServer git@myserver.com:myrepo.git
+* Add a remote to your local git folder `git remote add myServer git@myserver.com:myrepo.git`
 * Once its all set, use the new remote, `git push myServer branchName`
 
 ## To Do ##
