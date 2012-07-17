@@ -1,0 +1,143 @@
+#!/bin/sh
+#------------------------------------------------------
+# Configuration Variables
+#
+# The build directory is the local file where this script will
+# create a build folder and checkout each commit.
+
+BUILDDIRECTORY='/path/to/builds/'
+
+# Select the git format you want to use
+GITFORMAT='%h'
+
+# Enter a closing message
+FOOTERMSG='All good, ready to deploy'
+
+# ------------------------------------------------------
+# Start of the Script. Do not edit below this line.
+
+git-update-server-info
+
+# -------------------------------------------------------
+Colors() {
+Escape="\033";
+
+BlackF="${Escape}[30m";   RedF="${Escape}[31m";   GreenF="${Escape}[32m";
+YellowF="${Escape}[33m";  BlueF="${Escape}[34m";    Purplef="${Escape}[35m";
+CyanF="${Escape}[36m";    WhiteF="${Escape}[37m";
+
+BlackB="${Escape}[40m";     RedB="${Escape}[41m";     GreenB="${Escape}[42m";
+YellowB="${Escape}[43m";    BlueB="${Escape}[44m";    PurpleB="${Escape}[45m";
+CyanB="${Escape}[46m";      WhiteB="${Escape}[47m";
+
+BoldOn="${Escape}[1m";      BoldOff="${Escape}[22m";
+ItalicsOn="${Escape}[3m";   ItalicsOff="${Escape}[23m";
+UnderlineOn="${Escape}[4m";     UnderlineOff="${Escape}[24m";
+BlinkOn="${Escape}[5m";   BlinkOff="${Escape}[25m";
+InvertOn="${Escape}[7m";  InvertOff="${Escape}[27m";
+
+Reset="${Escape}[0m";
+}
+Colors;
+
+# -------------------------------------------------------
+if ! [ -t 0 ]; then
+  read -a ref
+fi
+
+IFS='/' read -ra REF <<< "${ref[2]}"
+branch="${REF[2]}"
+
+echo "${WhiteF}-------------------------------------------------${Reset}"
+echo "Current Branch: $branch"
+
+#if [ "staging" != "$branch" ] && [ "production" != "$branch" ]; then
+#  echo "${RedF}STOPPING - You can only the deploy 'PRODUCTION' or 'STAGING'.${Reset}"
+#  echo "------------------------------------------------"
+#  exit 0
+#fi
+
+# --------------------------------------------------------
+# Set the build path
+
+if [ ! -d "$BUILDDIRECTORY" ]; then
+  # Check that the builds folder exists.
+  echo "${RedF}FAIL: Base build folder does not exist, $BUILDDIRECTORY already exists.${Reset}"
+  echo ""
+  exit 0
+fi
+
+# -------------------------------------------------------
+# Get the last build num
+BUILDNUM=`git log -1 --pretty=format:$GITFORMAT`
+
+# --------------------------------------------------------
+# Set the build specific path
+BUILDPATH="$BUILDDIRECTORY/$BUILDNUM"
+
+# First check to make sure it does not already exist.
+if [ -d "$BUILDPATH" ]; then
+  # Check that the builds folder exists.         
+  echo "${RedF}FAIL: Build folder $BUILDPATH already exists.${Reset}"
+  echo ""
+  exit 0
+fi
+
+# --------------------------------------------------------
+echo "Starting build for commit $BUILDNUM."
+
+# Now echo and build the new folder
+echo "Creating build folder, $BUILDPATH"
+mkdir $BUILDPATH
+
+# --------------------------------------------------------
+# Check to make certain it ran and we have a new folder.
+if [ ! -d "$BUILDPATH" ]; then
+  # Check that the builds folder exists.         
+  echo "${RedF}FAIL: Unable to create the build folder.${Reset}"
+  echo ""
+  exit 0
+fi
+
+# Tell git about the build path and have it checkout.
+echo "Checking out commit to build path."
+GIT_WORK_TREE=$BUILDPATH git checkout -f
+
+if [ ! -f $BUILDPATH/package.json ]; then
+  echo "${RedF}FAIL: Unable to find a package.json file.${Reset}"
+  exit 0
+fi
+
+# Start the NPM install
+echo "Starting NPM install."
+cd $BUILDPATH
+
+# Check to make certain the NPM install will run and has no issues.
+echo "${GreenF}"
+NPMINSTALL=`npm install`
+echo "${Reset}"
+
+if [ "$NPMINSTALL" == "${string/not/}" ]; then
+  echo ""
+  echo "${RedF}FAIL: NPM Install Failed!${Reset}"
+  echo "--------------------------------------"
+  echo "${RedF}FAIL:$NPMINSTALL${Reset}"
+  echo "--------------------------------------"
+  exit 0
+fi
+
+echo "---------------------------------------------------"
+echo "NPM installed the following..."
+echo ""
+echo "$NPMINSTALL"
+echo "---------------------------------------------------"
+echo ""
+echo "Completed $BUILDNUM in $BUILDPATH."
+echo "Ready to deploy."
+echo ""
+echo "Ready to perform NPM test"
+echo "----------------------------------------------------"
+echo ""
+echo "${RedB}$FOOTERMSG${Reset}"
+echo ""
+echo "----------------------------------------------------"
